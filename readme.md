@@ -1,1 +1,0 @@
-Hi! This is my vocel fruit ninja game that i made for my graphics course in TDT4230
