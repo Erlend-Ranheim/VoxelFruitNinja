@@ -33,12 +33,25 @@ glad_add_library(glad
         API gl:core=4.6
 )
 
+#GLM
+FetchContent_Declare(
+        glm
+        GIT_REPOSITORY  https://github.com/g-truc/glm.git
+        GIT_TAG         1.0.3
+        GIT_SHALLOW     TRUE
+)
+FetchContent_MakeAvailable(glm)
+
+
 # Executables
-add_executable(VoxelFruitNinja main.cpp)
+add_executable(VoxelFruitNinja src/main.cpp
+        src/Renderer.cpp
+        src/Renderer.h)
 
 target_link_libraries(VoxelFruitNinja
         PRIVATE
         glfw
         glad
+        glm::glm
         opengl32
 )
