@@ -1,0 +1,13 @@
+//
+// Created by ranhe on 08.03.2026.
+//
+
+#ifndef VOXELFRUITNINJA_MODELLOADER_H
+#define VOXELFRUITNINJA_MODELLOADER_H
+
+
+class ModelLoader {
+};
+
+
+#endif //VOXELFRUITNINJA_MODELLOADER_H
