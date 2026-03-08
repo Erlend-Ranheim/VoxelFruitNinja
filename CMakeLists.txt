@@ -46,7 +46,10 @@ FetchContent_MakeAvailable(glm)
 # Executables
 add_executable(VoxelFruitNinja src/main.cpp
         src/Renderer.cpp
-        src/Renderer.h)
+        src/Renderer.h
+        src/ModelLoader.cpp
+        src/ModelLoader.h
+        src/Config.h)
 
 target_link_libraries(VoxelFruitNinja
         PRIVATE

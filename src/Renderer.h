@@ -23,11 +23,12 @@ struct Light {
 };
 
 class Renderer {
-    Renderer();
-    Camera camera;
-    Light light;
-
-
+    public:
+        Renderer(int, int);
+        void render();
+    private:
+        Camera camera;
+        Light light;
 };
 
 

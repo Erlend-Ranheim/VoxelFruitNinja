@@ -2,7 +2,11 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include "Config.h"
+#include "Renderer.h"
+
 int main() {
+
 
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW\n";
@@ -14,13 +18,12 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "VoxelFruitNinja", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "VoxelFruitNinja", nullptr, nullptr);
     if (!window) {
         std::cout << "Failed to create window\n";
         glfwTerminate();
         return -1;
     }
-
     glfwMakeContextCurrent(window);
 
     // Load OpenGL function pointers (GLAD v2)
@@ -31,9 +34,11 @@ int main() {
 
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
+    Renderer renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
+
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
-
+        renderer.render();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }

@@ -1,0 +1,12 @@
+//
+// Created by ranhe on 08.03.2026.
+//
+
+#ifndef VOXELFRUITNINJA_CONFIG_H
+#define VOXELFRUITNINJA_CONFIG_H
+
+const int WINDOW_WIDTH  = 1280;
+const int WINDOW_HEIGHT = 720;
+
+#endif //VOXELFRUITNINJA_CONFIG_H
+
