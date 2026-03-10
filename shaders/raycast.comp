@@ -1,0 +1,23 @@
+#version 430
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(rgba32f, binding = 0) uniform image2D outputImage;
+
+uniform vec3 cameraPos;
+uniform vec3 cameraForward;
+uniform vec3 cameraRight;
+uniform vec3 cameraUp;
+uniform float fov;
+uniform vec2 resolution;
+
+void main()
+{
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+
+    if (pixel.x >= int(resolution.x) || pixel.y >= int(resolution.y))
+    return;
+
+    vec2 uv = vec2(pixel) / resolution;
+    imageStore(outputImage, pixel, vec4(uv, 0.0, 1.0));
+}

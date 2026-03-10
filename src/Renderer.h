@@ -8,6 +8,8 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include "Compute.h"
+#include "Shader.h"
 
 
 struct Camera {
@@ -24,11 +26,23 @@ struct Light {
 
 class Renderer {
     public:
-        Renderer(int, int);
+        Renderer(int width, int height);
         void render();
     private:
+        int width, height;
         Camera camera;
         Light light;
+
+        Compute raycastCompute;
+        Shader screenShader;
+
+        GLuint computeProgram;
+        GLuint outputTexture;
+
+        GLuint screenVAO;
+        GLuint screenVBO;
+
+        GLuint screenProgram;
 };
 
 

@@ -49,7 +49,11 @@ add_executable(VoxelFruitNinja src/main.cpp
         src/Renderer.h
         src/ModelLoader.cpp
         src/ModelLoader.h
-        src/Config.h)
+        src/Config.h
+        src/Compute.h
+        src/Compute.cpp
+        src/Shader.cpp
+        src/Shader.h)
 
 target_link_libraries(VoxelFruitNinja
         PRIVATE
