@@ -12,13 +12,10 @@ Renderer::Renderer(int width, int height)
 : width(width), height(height), screenShader("../shaders/screen.vert", "../shaders/screen.frag"), raycastCompute("../shaders/raycast.comp")
 {
     camera.position = glm::vec3(0.0f,0.0f,0.0f);
-
     camera.forward = glm::vec3(0.0f,0.0f,-1.0f);
     camera.up = glm::vec3(0.0f,1.0f,0.0f);
     camera.right = glm::vec3(1.0f,0.0f,0.0f);
-
     camera.fov = 90.0f;
-
     light.position = glm::vec3(10.0f,10.0f,10.0f);
 
 
@@ -85,7 +82,7 @@ void Renderer::render() {
     glUniform3fv(glGetUniformLocation(program, "cameraUp"), 1, &camera.up[0]);
 
     glUniform1f(glGetUniformLocation(program, "fov"), camera.fov);
-    glUniform2f(glGetUniformLocation(program, "resolution"), width, height);
+    glUniform2f(glGetUniformLocation(program, "resolution"), (float)width, (float)height);
 
 
     glBindImageTexture(
@@ -98,7 +95,7 @@ void Renderer::render() {
         GL_RGBA32F
         );
 
-    raycastCompute.dispatch(width / 16, height / 16);
+    raycastCompute.dispatch((width + 15) / 16, (height + 15) / 16);
     raycastCompute.wait();
 
 
@@ -113,7 +110,5 @@ void Renderer::render() {
 
     glBindVertexArray(screenVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-
-
 }
 

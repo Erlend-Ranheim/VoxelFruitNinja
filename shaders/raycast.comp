@@ -9,15 +9,25 @@ uniform vec3 cameraForward;
 uniform vec3 cameraRight;
 uniform vec3 cameraUp;
 uniform float fov;
+
 uniform vec2 resolution;
 
 void main()
 {
-    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    float aspectRatio = resolution.x / resolution.y;
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy); //the relevant pixel we work with
 
-    if (pixel.x >= int(resolution.x) || pixel.y >= int(resolution.y))
+    if (pixel.x >= int(resolution.x) || pixel.y >= int(resolution.y)) //Checks if the relevant pixel is outside the reolution (shouldnt happen since we harcode dimensions to 1280x720)
     return;
 
-    vec2 uv = vec2(pixel) / resolution;
-    imageStore(outputImage, pixel, vec4(uv, 0.0, 1.0));
+    vec2 uv = ((vec2(pixel) + 0.5) / resolution) * 2.0 - 1.0; //Normalizing the screen coordinates so it goes from -1 to 1
+    uv.x *= aspectRatio; //applying right stretch in x / width axis
+
+    float f = tan(radians(fov*0.5));
+
+    vec3 rayDir = normalize(cameraForward + uv.x * f * cameraRight + uv.y * f * cameraUp);
+
+    vec3 color = rayDir * 0.5 + 0.5;
+
+    imageStore(outputImage, pixel, vec4(color, 1.0));
 }
