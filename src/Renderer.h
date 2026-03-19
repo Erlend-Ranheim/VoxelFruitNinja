@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 #include "Compute.h"
 #include "Shader.h"
+#include "ModelLoader.h"
 
 
 struct Camera {
@@ -24,25 +25,34 @@ struct Light {
     glm::vec3 position;
 };
 
+struct VoxelObject {
+    glm::vec3 position;
+    glm::vec3 scale;
+    glm::ivec3 gridSize;
+    GLuint voxelTex;
+};
+
 class Renderer {
     public:
         Renderer(int width, int height);
         void render();
     private:
         int width, height;
+
         Camera camera;
         Light light;
+        VoxelObject voxelObject;
 
         Compute raycastCompute;
         Shader screenShader;
 
-        GLuint computeProgram;
         GLuint outputTexture;
+        GLuint voxelTexture;
 
         GLuint screenVAO;
         GLuint screenVBO;
 
-        GLuint screenProgram;
+        std::vector<float> paletteData;
 };
 
 

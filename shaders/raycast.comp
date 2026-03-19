@@ -9,8 +9,17 @@ uniform vec3 cameraForward;
 uniform vec3 cameraRight;
 uniform vec3 cameraUp;
 uniform float fov;
-
 uniform vec2 resolution;
+
+uniform ivec3 gridSize;
+uniform vec3 boxMin;
+uniform vec3 boxMax;
+
+
+uniform usampler3D voxelGrid;
+uniform vec4 palette[256];
+
+
 
 //method for the Ray–AABB intersection algorithm
 bool intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax, out float tEnter, out float tExit){
@@ -35,12 +44,17 @@ bool intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax, out fl
 
 bool isSolidVoxel(ivec3 voxel)
 {
-    return voxel.x >= 10 && voxel.x <= 20 &&
-    voxel.y >= 10 && voxel.y <= 20 &&
-    voxel.z >= 10 && voxel.z <= 20;
+    uint value = texelFetch(voxelGrid, voxel, 0).r;
+    return value > 0u;
 }
 
-bool rayTraverse(vec3 rayOrigin, vec3 rayDir, float tEnter, float tExit,vec3 boxMin, vec3 boxMax, ivec3 gridSize, vec3 voxelSize){
+vec3 voxelColor(ivec3 voxel)
+{
+    uint idx = texelFetch(voxelGrid, voxel, 0).r;
+    return palette[idx].rgb;
+}
+
+bool rayTraverse(vec3 rayOrigin, vec3 rayDir, float tEnter, float tExit,vec3 boxMin, vec3 boxMax, ivec3 gridSize, vec3 voxelSize, out vec3 hitColor){
 
     // 1. start at entry point, convert to voxel-coords, check if this is solid
     vec3 startPos = rayOrigin + rayDir * max(tEnter, 0.0);
@@ -64,16 +78,15 @@ bool rayTraverse(vec3 rayOrigin, vec3 rayDir, float tEnter, float tExit,vec3 box
     tMax.y = (rayDir.y != 0.0) ? (nextBoundary.y - startPos.y) / rayDir.y : 1e30;
     tMax.z = (rayDir.z != 0.0) ? (nextBoundary.z - startPos.z) / rayDir.z : 1e30;
     // 3. Check
-    bool hitVoxel = false;
 
-    for (int i = 0; i < 256; i++)
+    for (int i = 0; i < 512; i++)
     {
         if (any(lessThan(voxel, ivec3(0))) || any(greaterThanEqual(voxel, gridSize)))
-        break;
+            break;
 
         if (isSolidVoxel(voxel)) {
-            hitVoxel = true;
-            break;
+            hitColor = voxelColor(voxel);
+            return true;
         }
 
         if (tMax.x < tMax.y && tMax.x < tMax.z) {
@@ -90,7 +103,7 @@ bool rayTraverse(vec3 rayOrigin, vec3 rayDir, float tEnter, float tExit,vec3 box
         }
     }
 
-    return hitVoxel;
+    return false;
 }
 
 void main()
@@ -110,11 +123,7 @@ void main()
     vec3 rayDir = normalize(cameraForward + uv.x * f * cameraRight + uv.y * f * cameraUp);
 
 
-    vec3 boxMin = vec3(-4.0, -4.0, -12.0);
-    vec3 boxMax = vec3( 4.0,  4.0,  -4.0);
-
     // Grid resolution
-    ivec3 gridSize = ivec3(32, 32, 32);
     vec3 boxSize = boxMax - boxMin;
     vec3 voxelSize = boxSize / vec3(gridSize);
 
@@ -122,24 +131,25 @@ void main()
     float tEnter;
     float tExit;
 
-    vec3 color;
+    vec3 color = vec3(0.0);
 
     bool hit = intersectAABB(rayOrigin, rayDir, boxMin, boxMax, tEnter, tExit);
 
-    bool hitTraverse = false;
-
-    if (hit) {
-        hitTraverse = rayTraverse(rayOrigin, rayDir, tEnter, tExit, boxMin, boxMax, gridSize, voxelSize);
-    }
-
     if (!hit) {
-        color = vec3(0.0, 1.0, 0.0);
+        imageStore(outputImage, pixel, vec4(0.0, 0.0, 0.0, 1.0));
+        return;
     }
-    else if (hitTraverse) {
-        color = vec3(1.0, 1.0, 0.0);
+
+
+    vec3 hitColor = vec3(1.0, 0.0, 1.0);
+    bool hitTraverse = rayTraverse(rayOrigin, rayDir, tEnter, tExit, boxMin, boxMax, gridSize, voxelSize, hitColor);
+
+
+    if (hitTraverse) {
+        color = hitColor;
     }
     else {
-        color = vec3(0.0, 0.0, 0.0);
+        color = vec3(0.1, 0.1, 0.1);
     }
 
     imageStore(outputImage, pixel, vec4(color, 1.0));

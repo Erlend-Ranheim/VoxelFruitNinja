@@ -7,6 +7,9 @@
 #include "ModelLoader.h"
 #include "Compute.h"
 
+#include <iostream>
+
+
 
 Renderer::Renderer(int width, int height)
 : width(width), height(height), screenShader("../shaders/screen.vert", "../shaders/screen.frag"), raycastCompute("../shaders/raycast.comp")
@@ -52,8 +55,6 @@ Renderer::Renderer(int width, int height)
         -1.0f,  1.0f,  0.0f, 1.0f
     };
 
-    GLuint screenVBO;
-
     glGenVertexArrays(1, &screenVAO);
     glGenBuffers(1, &screenVBO);
 
@@ -68,6 +69,53 @@ Renderer::Renderer(int width, int height)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     glBindVertexArray(0);
+
+
+    //Load .VOX model
+    VoxModel model = ModelLoader::load("../models/bananversjon1.vox");
+
+
+    //Passes the cube to shader
+    glGenTextures(1, &voxelTexture);
+    glBindTexture(GL_TEXTURE_3D, voxelTexture);
+
+    glTexImage3D(
+        GL_TEXTURE_3D,
+        0,
+        GL_R8UI,
+        model.sizeX,
+        model.sizeY,
+        model.sizeZ,
+        0,
+        GL_RED_INTEGER,
+        GL_UNSIGNED_BYTE,
+        model.voxels.data()
+    );
+
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    //Creates instance of one fruit
+    voxelObject.position = glm::vec3(0.0f,0.0f,-10.0f);
+    voxelObject.scale = glm::vec3(0.1f, 0.1f, 0.1f);
+    voxelObject.gridSize = glm::ivec3(model.sizeX, model.sizeY, model.sizeZ);
+    voxelObject.voxelTex = voxelTexture;
+
+    // -------------------------
+    // Convert palette to float array for GLSL
+    // -------------------------
+    paletteData.resize(256 * 4);
+
+    for (int i = 0; i < 256; ++i) {
+        paletteData[i * 4 + 0] = model.palette[i].r / 255.0f;
+        paletteData[i * 4 + 1] = model.palette[i].g / 255.0f;
+        paletteData[i * 4 + 2] = model.palette[i].b / 255.0f;
+        paletteData[i * 4 + 3] = model.palette[i].a / 255.0f;
+    }
+
 }
 
 void Renderer::render() {
@@ -80,10 +128,28 @@ void Renderer::render() {
     glUniform3fv(glGetUniformLocation(program, "cameraForward"), 1, &camera.forward[0]);
     glUniform3fv(glGetUniformLocation(program, "cameraRight"), 1, &camera.right[0]);
     glUniform3fv(glGetUniformLocation(program, "cameraUp"), 1, &camera.up[0]);
-
     glUniform1f(glGetUniformLocation(program, "fov"), camera.fov);
     glUniform2f(glGetUniformLocation(program, "resolution"), (float)width, (float)height);
 
+    glm::vec3 boxSize = glm::vec3(voxelObject.gridSize) * voxelObject.scale;
+    glm::vec3 boxMin = voxelObject.position - boxSize * 0.5f;
+    glm::vec3 boxMax = voxelObject.position + boxSize * 0.5f;
+
+    glUniform3iv(glGetUniformLocation(program, "gridSize"), 1, &voxelObject.gridSize[0]);
+    glUniform3fv(glGetUniformLocation(program, "boxMin"), 1, &boxMin[0]);
+    glUniform3fv(glGetUniformLocation(program, "boxMax"), 1, &boxMax[0]);
+
+    // Palette uniform
+    glUniform4fv(
+        glGetUniformLocation(program, "palette"),
+        256,
+        paletteData.data()
+    );
+
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_3D, voxelObject.voxelTex);
+    glUniform1i(glGetUniformLocation(program, "voxelGrid"), 1);
 
     glBindImageTexture(
         0,
@@ -94,6 +160,9 @@ void Renderer::render() {
         GL_WRITE_ONLY,
         GL_RGBA32F
         );
+
+
+
 
     raycastCompute.dispatch((width + 15) / 16, (height + 15) / 16);
     raycastCompute.wait();
