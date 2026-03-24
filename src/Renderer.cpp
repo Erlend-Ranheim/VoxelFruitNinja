@@ -6,6 +6,8 @@
 #include "Config.h"
 #include "ModelLoader.h"
 #include "Compute.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "../libraries/stb_image.h"
 
 #include <iostream>
 
@@ -75,7 +77,7 @@ Renderer::Renderer(int width, int height)
     VoxModel model = ModelLoader::load("../models/bananversjon1.vox");
 
 
-    //Passes the cube to shader
+    //Passes the voxel model to shader
     glGenTextures(1, &voxelTexture);
     glBindTexture(GL_TEXTURE_3D, voxelTexture);
 
@@ -98,9 +100,31 @@ Renderer::Renderer(int width, int height)
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
+    //Load the background image
+    glGenTextures(1, &backgroundTexture);
+    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    int channels, bgHeight, bgWidth;
+    unsigned char *background = stbi_load("../models/FruitNinjaBackground.jpeg", &bgWidth, &bgHeight,  &channels, 0);
+    if (background) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bgWidth, bgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, background);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+
+    stbi_image_free(background);
+
+
     //Creates instance of one fruit
     voxelObject.position = glm::vec3(0.0f,0.0f,-10.0f);
-    voxelObject.scale = glm::vec3(0.1f, 0.1f, 0.1f);
+    voxelObject.scale = glm::vec3(0.4f);
     voxelObject.gridSize = glm::ivec3(model.sizeX, model.sizeY, model.sizeZ);
     voxelObject.voxelTex = voxelTexture;
 
@@ -130,6 +154,7 @@ void Renderer::render() {
     glUniform3fv(glGetUniformLocation(program, "cameraUp"), 1, &camera.up[0]);
     glUniform1f(glGetUniformLocation(program, "fov"), camera.fov);
     glUniform2f(glGetUniformLocation(program, "resolution"), (float)width, (float)height);
+    glUniform3fv(glGetUniformLocation(program, "lightPosition"), 1, &light.position[0]);
 
     glm::vec3 boxSize = glm::vec3(voxelObject.gridSize) * voxelObject.scale;
     glm::vec3 boxMin = voxelObject.position - boxSize * 0.5f;
@@ -161,6 +186,10 @@ void Renderer::render() {
         GL_RGBA32F
         );
 
+    //background image
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+    glUniform1i(glGetUniformLocation(program, "backgroundTexture"), 2);
 
 
 

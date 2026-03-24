@@ -53,7 +53,8 @@ add_executable(VoxelFruitNinja src/main.cpp
         src/Compute.h
         src/Compute.cpp
         src/Shader.cpp
-        src/Shader.h)
+        src/Shader.h
+        libraries/stb_image.h)
 
 target_link_libraries(VoxelFruitNinja
         PRIVATE

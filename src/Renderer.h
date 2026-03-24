@@ -49,6 +49,8 @@ class Renderer {
         GLuint outputTexture;
         GLuint voxelTexture;
 
+        GLuint backgroundTexture;
+
         GLuint screenVAO;
         GLuint screenVBO;
 
