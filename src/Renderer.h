@@ -25,11 +25,16 @@ struct Light {
     glm::vec3 position;
 };
 
-struct VoxelObject {
+struct VoxelModel {
+    GLuint      voxelTexture;
+    glm::ivec3  gridSize;
+    std::vector<float> paletteData;
+};
+
+struct FruitInstance {
     glm::vec3 position;
-    glm::vec3 scale;
-    glm::ivec3 gridSize;
-    GLuint voxelTex;
+    float scale;
+    int fruitType;
 };
 
 class Renderer {
@@ -41,20 +46,25 @@ class Renderer {
 
         Camera camera;
         Light light;
-        VoxelObject voxelObject;
+
+        // All loaded fruit types
+        std::vector<VoxelModel> fruitModels;
+
+        // All active fruits in the scene
+        std::vector<FruitInstance> fruitInstances;
+
 
         Compute raycastCompute;
         Shader screenShader;
 
         GLuint outputTexture;
-        GLuint voxelTexture;
-
         GLuint backgroundTexture;
 
         GLuint screenVAO;
         GLuint screenVBO;
 
-        std::vector<float> paletteData;
+        // Helper to load a .vox and push into fruitModels
+        int loadFruitModel(const std::string& path);
 };
 
 

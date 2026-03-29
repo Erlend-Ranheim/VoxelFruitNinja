@@ -17,7 +17,7 @@ namespace {
         return std::string(id, 4);
     }
 
-    void loadDefaultPalette(VoxModel& model) {
+    void loadDefaultPalette(ModelData& model) {
         // Very simple fallback palette if RGBA chunk is absent.
         // You can replace this later with the official default palette.
         for (int i = 0; i < 256; ++i) {
@@ -26,7 +26,7 @@ namespace {
     }
 }
 
-VoxModel ModelLoader::load(const std::string& path) {
+ModelData ModelLoader::load(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open .vox file: " + path);
@@ -40,7 +40,7 @@ VoxModel ModelLoader::load(const std::string& path) {
     int version = readInt(file);
     std::cout << "VOX version: " << version << std::endl;
 
-    VoxModel model;
+    ModelData model;
     loadDefaultPalette(model);
 
     bool foundSize = false;

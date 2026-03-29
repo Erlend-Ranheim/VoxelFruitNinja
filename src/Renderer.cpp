@@ -12,7 +12,6 @@
 #include <iostream>
 
 
-
 Renderer::Renderer(int width, int height)
 : width(width), height(height), screenShader("../shaders/screen.vert", "../shaders/screen.frag"), raycastCompute("../shaders/raycast.comp")
 {
@@ -73,32 +72,16 @@ Renderer::Renderer(int width, int height)
     glBindVertexArray(0);
 
 
-    //Load .VOX model
-    VoxModel model = ModelLoader::load("../models/bananversjon1.vox");
 
+    // Load fruit types - returns index you use in FruitInstance
+    int bananaType = loadFruitModel("../models/bananversjon1.vox");
+    // int appleType = loadFruitModel("../models/apple.vox");  // add more later
 
-    //Passes the voxel model to shader
-    glGenTextures(1, &voxelTexture);
-    glBindTexture(GL_TEXTURE_3D, voxelTexture);
+    // Spawn some instances
+    fruitInstances.push_back({glm::vec3( -2.0f, -2.0f, -10.0f), 0.4f, bananaType });
+    fruitInstances.push_back({glm::vec3( 8.0f, 8.0f, -15.0f), 0.3f, bananaType });
+    // fruitInstances.push_back({ glm::vec3(-2.0f, 0.0f, -10.0f), 0.4f, appleType });
 
-    glTexImage3D(
-        GL_TEXTURE_3D,
-        0,
-        GL_R8UI,
-        model.sizeX,
-        model.sizeY,
-        model.sizeZ,
-        0,
-        GL_RED_INTEGER,
-        GL_UNSIGNED_BYTE,
-        model.voxels.data()
-    );
-
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
     //Load the background image
     glGenTextures(1, &backgroundTexture);
@@ -121,25 +104,35 @@ Renderer::Renderer(int width, int height)
 
     stbi_image_free(background);
 
+}
 
-    //Creates instance of one fruit
-    voxelObject.position = glm::vec3(0.0f,0.0f,-10.0f);
-    voxelObject.scale = glm::vec3(0.4f);
-    voxelObject.gridSize = glm::ivec3(model.sizeX, model.sizeY, model.sizeZ);
-    voxelObject.voxelTex = voxelTexture;
+int Renderer::loadFruitModel(const std::string& path) {
+    ModelData model = ModelLoader::load(path.c_str());
 
-    // -------------------------
-    // Convert palette to float array for GLSL
-    // -------------------------
-    paletteData.resize(256 * 4);
+    VoxelModel fruit;
+    fruit.gridSize = glm::ivec3(model.sizeX, model.sizeY, model.sizeZ);
 
+    glGenTextures(1, &fruit.voxelTexture);
+    glBindTexture(GL_TEXTURE_3D, fruit.voxelTexture);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8UI,
+        model.sizeX, model.sizeY, model.sizeZ,
+        0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, model.voxels.data());
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    fruit.paletteData.resize(256 * 4);
     for (int i = 0; i < 256; ++i) {
-        paletteData[i * 4 + 0] = model.palette[i].r / 255.0f;
-        paletteData[i * 4 + 1] = model.palette[i].g / 255.0f;
-        paletteData[i * 4 + 2] = model.palette[i].b / 255.0f;
-        paletteData[i * 4 + 3] = model.palette[i].a / 255.0f;
+        fruit.paletteData[i*4+0] = model.palette[i].r / 255.0f;
+        fruit.paletteData[i*4+1] = model.palette[i].g / 255.0f;
+        fruit.paletteData[i*4+2] = model.palette[i].b / 255.0f;
+        fruit.paletteData[i*4+3] = model.palette[i].a / 255.0f;
     }
 
+    fruitModels.push_back(fruit);
+    return (int)fruitModels.size() - 1; // returns the index
 }
 
 void Renderer::render() {
@@ -156,26 +149,41 @@ void Renderer::render() {
     glUniform2f(glGetUniformLocation(program, "resolution"), (float)width, (float)height);
     glUniform3fv(glGetUniformLocation(program, "lightPosition"), 1, &light.position[0]);
 
-    glm::vec3 boxSize = glm::vec3(voxelObject.gridSize) * voxelObject.scale;
-    glm::vec3 boxMin = voxelObject.position - boxSize * 0.5f;
-    glm::vec3 boxMax = voxelObject.position + boxSize * 0.5f;
 
-    glUniform3iv(glGetUniformLocation(program, "gridSize"), 1, &voxelObject.gridSize[0]);
-    glUniform3fv(glGetUniformLocation(program, "boxMin"), 1, &boxMin[0]);
-    glUniform3fv(glGetUniformLocation(program, "boxMax"), 1, &boxMax[0]);
+    glUniform1i(glGetUniformLocation(program, "fruitCount"), (int)fruitInstances.size());
 
-    // Palette uniform
-    glUniform4fv(
-        glGetUniformLocation(program, "palette"),
-        256,
-        paletteData.data()
-    );
+    for (int i = 0; i < (int)fruitInstances.size(); i++) {
+        const FruitInstance& inst = fruitInstances[i];
+        const VoxelModel&    model = fruitModels[inst.fruitType];
 
+        // Build uniform name strings like "fruits[0].position"
+        std::string base = "fruits[" + std::to_string(i) + "].";
 
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_3D, voxelObject.voxelTex);
-    glUniform1i(glGetUniformLocation(program, "voxelGrid"), 1);
+        glm::vec3 boxSize = glm::vec3(model.gridSize) * inst.scale;
+        glm::vec3 boxMin  = inst.position - boxSize * 0.5f;
+        glm::vec3 boxMax  = inst.position + boxSize * 0.5f;
 
+        glUniform3fv(glGetUniformLocation(program, (base+"boxMin").c_str()),   1, &boxMin[0]);
+        glUniform3fv(glGetUniformLocation(program, (base+"boxMax").c_str()),   1, &boxMax[0]);
+        glUniform3iv(glGetUniformLocation(program, (base+"gridSize").c_str()), 1, &model.gridSize[0]);
+        glUniform1i (glGetUniformLocation(program, (base+"fruitType").c_str()), inst.fruitType);
+
+        // Bind the 3D texture to slot 3+i (slots 0,1,2 are taken)
+        glActiveTexture(GL_TEXTURE3 + i);
+        glBindTexture(GL_TEXTURE_3D, model.voxelTexture);
+
+        // Bind palette for this fruit type
+        std::string palName = "palettes[" + std::to_string(inst.fruitType) + "]";
+        glUniform4fv(glGetUniformLocation(program, palName.c_str()), 256, model.paletteData.data());
+    }
+
+    // Tell the shader which texture unit each fruit type lives on
+    for (int t = 0; t < (int)fruitModels.size(); t++) {
+        std::string name = "fruitTextures[" + std::to_string(t) + "]";
+        glUniform1i(glGetUniformLocation(program, name.c_str()), 3 + t);
+    }
+
+    //This is the texture htat is outputted from the compute shader
     glBindImageTexture(
         0,
         outputTexture,

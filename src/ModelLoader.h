@@ -20,7 +20,7 @@ struct VoxColor {
     unsigned char a = 255;
 };
 
-struct VoxModel {
+struct ModelData {
     int sizeX = 0;
     int sizeY = 0;
     int sizeZ = 0;
@@ -38,7 +38,7 @@ struct VoxModel {
 
 class ModelLoader {
 public:
-    static VoxModel load(const std::string& path);
+    static ModelData load(const std::string& path);
 };
 
 #endif

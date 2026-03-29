@@ -12,14 +12,21 @@ uniform float fov;
 uniform vec2 resolution;
 uniform vec3 lightPosition;
 
-uniform ivec3 gridSize;
-uniform vec3 boxMin;
-uniform vec3 boxMax;
-
 uniform sampler2D backgroundTexture;
-uniform usampler3D voxelGrid;
-uniform vec4 palette[256];
 
+#define MAX_FRUITS 10
+#define MAX_FRUIT_TYPES 4
+
+struct FruitData {
+    ivec3 gridSize;
+    vec3 boxMin;
+    vec3 boxMax;
+    int fruitType;
+};
+uniform int fruitCount;
+uniform FruitData fruits[MAX_FRUITS];
+uniform usampler3D fruitTextures[MAX_FRUIT_TYPES];
+uniform vec4 palettes[MAX_FRUIT_TYPES][256];
 
 
 //method for the Ray–AABB intersection algorithm
@@ -43,19 +50,27 @@ bool intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax, out fl
     return tExit >= max(tEnter, 0.0);
 }
 
-bool isSolidVoxel(ivec3 voxel)
-{
-    uint value = texelFetch(voxelGrid, voxel, 0).r;
-    return value > 0u;
+uint sampleVoxel(ivec3 voxel, int fruitType) {
+    switch (fruitType) {
+        case 0: return texelFetch(fruitTextures[0], voxel, 0).r;
+        case 1: return texelFetch(fruitTextures[1], voxel, 0).r;
+        case 2: return texelFetch(fruitTextures[2], voxel, 0).r;
+        case 3: return texelFetch(fruitTextures[3], voxel, 0).r;
+        default: return 0u;
+    }
 }
 
-vec3 voxelColor(ivec3 voxel)
+bool isSolidVoxel(ivec3 voxel, int fruitType)
 {
-    uint idx = texelFetch(voxelGrid, voxel, 0).r;
-    return palette[idx].rgb;
+    return sampleVoxel(voxel, fruitType) > 0u;
 }
 
-bool rayTraverse(vec3 rayOrigin, vec3 rayDir, float tEnter, float tExit,vec3 boxMin, vec3 boxMax, ivec3 gridSize, vec3 voxelSize, out vec3 hitColor, out vec3 hitPos, out vec3 hitNormal){
+vec3 voxelColor(ivec3 voxel, int fruitType) {
+    uint idx = sampleVoxel(voxel, fruitType);
+    return palettes[fruitType][idx].rgb;
+}
+
+bool rayTraverse(vec3 rayOrigin, vec3 rayDir, float tEnter, float tExit,vec3 boxMin, vec3 boxMax, ivec3 gridSize, vec3 voxelSize, int fruitType, out vec3 hitColor, out vec3 hitPos, out vec3 hitNormal){
 
     // 1. start at entry point, convert to voxel-coords, check if this is solid
     vec3 startPos = rayOrigin + rayDir * max(tEnter, 0.0);
@@ -88,8 +103,8 @@ bool rayTraverse(vec3 rayOrigin, vec3 rayDir, float tEnter, float tExit,vec3 box
         if (any(lessThan(voxel, ivec3(0))) || any(greaterThanEqual(voxel, gridSize)))
             break;
 
-        if (isSolidVoxel(voxel)) {
-            hitColor = voxelColor(voxel);
+        if (isSolidVoxel(voxel, fruitType)) {
+            hitColor = voxelColor(voxel, fruitType);
             hitNormal = normalize(vec3(lastStepAxis));
 
             vec3 voxelCenter = boxMin + (vec3(voxel) + 0.5) * voxelSize;
@@ -124,7 +139,7 @@ void main()
     ivec2 pixel = ivec2(gl_GlobalInvocationID.xy); //the relevant pixel we work with
 
     if (pixel.x >= int(resolution.x) || pixel.y >= int(resolution.y)) //Checks if the relevant pixel is outside the reolution (shouldnt happen since we harcode dimensions to 1280x720)
-    return;
+        return;
 
     vec2 uv = ((vec2(pixel) + 0.5) / resolution) * 2.0 - 1.0; //Normalizing the screen coordinates so it goes from -1 to 1
     uv.x *= aspectRatio; //applying right stretch in x/width axis
@@ -135,44 +150,41 @@ void main()
     vec3 rayDir = normalize(cameraForward + uv.x * f * cameraRight + uv.y * f * cameraUp);
 
 
-    // Grid resolution
-    vec3 boxSize = boxMax - boxMin;
-    vec3 voxelSize = boxSize / vec3(gridSize);
+    //Sets background as default
+    vec2 bgUV    = vec2(pixel) / resolution;
+    vec3 bgColor = texture(backgroundTexture, bgUV).rgb;
+    vec3 finalColor = bgColor;
 
 
-    float tEnter;
-    float tExit;
+    float closestT = 1e30;
 
-    vec3 color = vec3(0.0);
+    for (int i = 0; i < fruitCount; i++) {
+        float tEnter, tExit;
+        bool aabbHit = intersectAABB(rayOrigin, rayDir, fruits[i].boxMin, fruits[i].boxMax, tEnter, tExit);
 
-    bool hit = intersectAABB(rayOrigin, rayDir, boxMin, boxMax, tEnter, tExit);
+        if (!aabbHit || tEnter >= closestT)
+        continue;
 
-    if (!hit) {
-        vec2 uv = vec2(pixel) / resolution;
-        vec3 bgColor = texture(backgroundTexture, uv).rgb;
-        imageStore(outputImage, pixel, vec4(bgColor, 1.0));
-        return;
+        vec3 boxSize   = fruits[i].boxMax - fruits[i].boxMin;
+        vec3 voxelSize = boxSize / vec3(fruits[i].gridSize);
+
+        vec3 hitColor, hitPos, hitNormal;
+        bool hit = rayTraverse(rayOrigin, rayDir, tEnter, tExit,
+                               fruits[i].boxMin, fruits[i].boxMax,
+                               fruits[i].gridSize, voxelSize,
+                               fruits[i].fruitType,
+                               hitColor, hitPos, hitNormal);
+
+        if (hit && tEnter < closestT) {
+            closestT = tEnter;
+
+            vec3 lightDir = normalize(lightPosition - hitPos);
+            float diffuse = max(dot(hitNormal, lightDir), 0.0);
+            float ambient = 0.2;
+            finalColor = hitColor * (ambient + 0.8 * diffuse);
+        }
     }
 
-
-    vec3 hitColor = vec3(1.0, 0.0, 1.0);
-    vec3 hitPos;
-    vec3 hitNormal;
-    bool hitTraverse = rayTraverse(rayOrigin, rayDir, tEnter, tExit, boxMin, boxMax, gridSize, voxelSize, hitColor, hitPos, hitNormal);
-
-
-    if (hitTraverse) {
-        vec3 lightDir = normalize(lightPosition - hitPos);
-        float diffuse = max(dot(hitNormal, lightDir), 0.0);
-
-        float ambient = 0.2;
-        color = hitColor * (ambient + 0.8*diffuse);
-        imageStore(outputImage, pixel, vec4(color, 1.0));
-    }
-    else {
-        vec2 uv = vec2(pixel) / resolution;
-        vec3 bgColor = texture(backgroundTexture, uv).rgb;
-        imageStore(outputImage, pixel, vec4(bgColor, 1.0));
-    }
+    imageStore(outputImage, pixel, vec4(finalColor, 1.0));
 
 }
