@@ -36,9 +36,17 @@ int main() {
 
     Renderer renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
 
+    float lastTime = 0.0f;
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
+
+        float currentTime = (float)glfwGetTime();
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        renderer.update(deltaTime);
         renderer.render();
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }

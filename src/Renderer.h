@@ -35,12 +35,19 @@ struct FruitInstance {
     glm::vec3 position;
     float scale;
     int fruitType;
+
+    glm::vec3 velocity;
+    float rotationAngle;
+    glm::vec3 rotationAxis;
+    float rotationSpeed;
 };
+
 
 class Renderer {
     public:
         Renderer(int width, int height);
         void render();
+        void update(float deltaTime);
     private:
         int width, height;
 
@@ -53,7 +60,6 @@ class Renderer {
         // All active fruits in the scene
         std::vector<FruitInstance> fruitInstances;
 
-
         Compute raycastCompute;
         Shader screenShader;
 
@@ -63,8 +69,13 @@ class Renderer {
         GLuint screenVAO;
         GLuint screenVBO;
 
-        // Helper to load a .vox and push into fruitModels
         int loadFruitModel(const std::string& path);
+        void spawnFruit();
+
+        float spawnTimer = 0.0f;
+        float spawnInterval = 1.5f;
+
+        int maxFruits = 10;
 };
 
 

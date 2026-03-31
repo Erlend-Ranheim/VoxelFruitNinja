@@ -11,6 +11,10 @@
 
 #include <iostream>
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+
 
 Renderer::Renderer(int width, int height)
 : width(width), height(height), screenShader("../shaders/screen.vert", "../shaders/screen.frag"), raycastCompute("../shaders/raycast.comp")
@@ -74,13 +78,9 @@ Renderer::Renderer(int width, int height)
 
 
     // Load fruit types - returns index you use in FruitInstance
-    int bananaType = loadFruitModel("../models/bananversjon1.vox");
+    int bananaType = loadFruitModel("../models/banan.vox");
+    int tomatType = loadFruitModel("../models/tomat.vox");
     // int appleType = loadFruitModel("../models/apple.vox");  // add more later
-
-    // Spawn some instances
-    fruitInstances.push_back({glm::vec3( -2.0f, -2.0f, -10.0f), 0.4f, bananaType });
-    fruitInstances.push_back({glm::vec3( 8.0f, 8.0f, -15.0f), 0.3f, bananaType });
-    // fruitInstances.push_back({ glm::vec3(-2.0f, 0.0f, -10.0f), 0.4f, appleType });
 
 
     //Load the background image
@@ -135,6 +135,26 @@ int Renderer::loadFruitModel(const std::string& path) {
     return (int)fruitModels.size() - 1; // returns the index
 }
 
+void Renderer::spawnFruit() {
+    auto randFloat = [](float min, float max) {
+        return min + (float)rand() / RAND_MAX * (max - min);
+    };
+
+    if (fruitInstances.size() >= maxFruits)
+        return;
+
+    FruitInstance fruit;
+    fruit.fruitType     = rand() % fruitModels.size();
+    fruit.scale         = randFloat(0.1f, 0.3f);
+    fruit.position      = glm::vec3(randFloat(-8.0f, 8.0f), -12.0f, -10.0f);
+    fruit.velocity      = glm::vec3(randFloat(-2.0f, 2.0f), randFloat(16.0f, 22.0f), 0.0f);
+    fruit.rotationAngle = 0.0f;
+    fruit.rotationAxis  = glm::normalize(glm::vec3(randFloat(-1,1), randFloat(-1,1), randFloat(-1,1)));
+    fruit.rotationSpeed = randFloat(1.0f, 4.0f);
+
+    fruitInstances.push_back(fruit);
+}
+
 void Renderer::render() {
 
     raycastCompute.use();
@@ -154,33 +174,43 @@ void Renderer::render() {
 
     for (int i = 0; i < (int)fruitInstances.size(); i++) {
         const FruitInstance& inst = fruitInstances[i];
-        const VoxelModel&    model = fruitModels[inst.fruitType];
+        const VoxelModel& model = fruitModels[inst.fruitType];
 
-        // Build uniform name strings like "fruits[0].position"
         std::string base = "fruits[" + std::to_string(i) + "].";
 
-        glm::vec3 boxSize = glm::vec3(model.gridSize) * inst.scale;
-        glm::vec3 boxMin  = inst.position - boxSize * 0.5f;
-        glm::vec3 boxMax  = inst.position + boxSize * 0.5f;
+        // Sphere-based AABB
+        float radius = glm::length(glm::vec3(model.gridSize) * inst.scale) * 0.5f;
+        glm::vec3 boxMin = inst.position - glm::vec3(radius);
+        glm::vec3 boxMax = inst.position + glm::vec3(radius);
 
-        glUniform3fv(glGetUniformLocation(program, (base+"boxMin").c_str()),   1, &boxMin[0]);
-        glUniform3fv(glGetUniformLocation(program, (base+"boxMax").c_str()),   1, &boxMax[0]);
-        glUniform3iv(glGetUniformLocation(program, (base+"gridSize").c_str()), 1, &model.gridSize[0]);
+        glUniform3fv(glGetUniformLocation(program, (base+"boxMin").c_str()),    1, &boxMin[0]);
+        glUniform3fv(glGetUniformLocation(program, (base+"boxMax").c_str()),    1, &boxMax[0]);
+        glUniform3iv(glGetUniformLocation(program, (base+"gridSize").c_str()),  1, &model.gridSize[0]);
         glUniform1i (glGetUniformLocation(program, (base+"fruitType").c_str()), inst.fruitType);
+        glUniform3fv(glGetUniformLocation(program, (base+"center").c_str()),    1, &inst.position[0]);
+        glUniform1f (glGetUniformLocation(program, (base+"scale").c_str()),     inst.scale);
 
-        // Bind the 3D texture to slot 3+i (slots 0,1,2 are taken)
-        glActiveTexture(GL_TEXTURE3 + i);
-        glBindTexture(GL_TEXTURE_3D, model.voxelTexture);
 
-        // Bind palette for this fruit type
-        std::string palName = "palettes[" + std::to_string(inst.fruitType) + "]";
-        glUniform4fv(glGetUniformLocation(program, palName.c_str()), 256, model.paletteData.data());
+        // Rotation matrix — also inside the loop
+        glm::mat3 rot = glm::mat3(glm::rotate(
+            glm::mat4(1.0f),
+            inst.rotationAngle,
+            inst.rotationAxis
+        ));
+        glUniformMatrix3fv(glGetUniformLocation(program, (base+"rotation").c_str()),
+                           1, GL_FALSE, glm::value_ptr(rot));
     }
 
     // Tell the shader which texture unit each fruit type lives on
     for (int t = 0; t < (int)fruitModels.size(); t++) {
+        glActiveTexture(GL_TEXTURE3 + t);   // slot 3+t for type t
+        glBindTexture(GL_TEXTURE_3D, fruitModels[t].voxelTexture);
+
         std::string name = "fruitTextures[" + std::to_string(t) + "]";
         glUniform1i(glGetUniformLocation(program, name.c_str()), 3 + t);
+
+        std::string palName = "palettes[" + std::to_string(t) + "]";
+        glUniform4fv(glGetUniformLocation(program, palName.c_str()), 256, fruitModels[t].paletteData.data());
     }
 
     //This is the texture htat is outputted from the compute shader
@@ -216,5 +246,32 @@ void Renderer::render() {
 
     glBindVertexArray(screenVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
+const float GRAVITY = -9.8f;
+
+void Renderer::update(float deltatime) {
+    spawnTimer += deltatime;
+    if (spawnTimer >= spawnInterval) {
+        spawnTimer = 0.0f;
+        spawnFruit();
+    }
+    for (auto& fruit : fruitInstances) {
+        //Gravity
+        fruit.velocity.y += GRAVITY * deltatime;
+        fruit.position += fruit.velocity * deltatime;
+
+        //Spin
+        fruit.rotationAngle += fruit.rotationSpeed * deltatime;
+    }
+
+    //Removes fruitinstance if out of screen
+    fruitInstances.erase(
+    std::remove_if(fruitInstances.begin(), fruitInstances.end(),
+        [](const FruitInstance& f) {
+            return f.position.y < -15.0f; // below screen
+        }),
+    fruitInstances.end()
+);
 }
 
