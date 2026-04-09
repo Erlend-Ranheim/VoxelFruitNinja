@@ -27,7 +27,6 @@ Renderer::Renderer(int width, int height)
     camera.fov = 90.0f;
     light.position = glm::vec3(10.0f,10.0f,10.0f);
 
-
     //Compute shader
     glGenTextures(1, &outputTexture);
     glBindTexture(GL_TEXTURE_2D, outputTexture);
@@ -79,9 +78,9 @@ Renderer::Renderer(int width, int height)
 
     //UBO
     glGenBuffers(1, &paletteUBO);
-    glBindBuffer(GL_UNIFORM_BUFFER, paletteUBO);
-    glBufferData(GL_UNIFORM_BUFFER, MAX_FRUIT_TYPES * 256 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 1, paletteUBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, paletteUBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, MAX_FRUIT_TYPES * 256 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, paletteUBO);
 
     // Load fruit types - returns index you use in FruitInstance
     int bananaType = loadFruitModel("../models/banan.vox");
@@ -145,11 +144,11 @@ int Renderer::loadFruitModel(const std::string& path) {
     return (int)fruitModels.size() - 1; // returns the index
 }
 
-void Renderer::spawnFruit() {
-    auto randFloat = [](float min, float max) {
-        return min + (float)rand() / RAND_MAX * (max - min);
-    };
+auto randFloat = [](float min, float max) {
+    return min + (float)rand() / RAND_MAX * (max - min);
+};
 
+void Renderer::spawnFruit() {
     if (fruitInstances.size() >= maxFruits)
         return;
 
@@ -181,10 +180,7 @@ int Renderer::uploadNewFruitType(const VoxelModel& source, const std::vector<uin
     newModel.paletteData = source.paletteData;
     newModel.voxels      = voxels;
 
-    if ((int)fruitModels.size() >= MAX_FRUIT_TYPES) {
-        std::cout << "Warning: MAX_FRUIT_TYPES exceeded, cannot upload new fruit type\n";
-        return 0; // fall back to type 0 rather than crash
-    }
+
 
     glGenTextures(1, &newModel.voxelTexture);
     glBindTexture(GL_TEXTURE_3D, newModel.voxelTexture);
@@ -257,16 +253,16 @@ void Renderer::sliceFruit(glm::vec3 cutPlane, int fruitIndex) {
     int typeA = uploadNewFruitType(fruitModels[originalFruitType], voxelsA);
     int typeB = uploadNewFruitType(fruitModels[originalFruitType], voxelsB);
 
-    // Create two halves flying apart
+
     FruitInstance halfA = original;
     halfA.fruitType     = typeA;
-    halfA.velocity     += glm::vec3(-2.0f, 1.0f, 0.0f);
-    halfA.rotationSpeed = 4.0f;
+    halfA.velocity     += glm::vec3(randFloat(-3.0f, -0.5f), randFloat(0.5f, 3.0f), 0.0f);
+    halfA.rotationSpeed = randFloat(3.0f, 6.0f);
 
     FruitInstance halfB = original;
     halfB.fruitType     = typeB;
-    halfB.velocity     += glm::vec3(2.0f, 1.0f, 0.0f);
-    halfB.rotationSpeed = 4.0f;
+    halfB.velocity     += glm::vec3(randFloat(0.5f, 3.0f), randFloat(0.5f, 3.0f), 0.0f);
+    halfB.rotationSpeed = randFloat(3.0f, 6.0f);
 
     // Remove original, add halves
     fruitInstances.erase(fruitInstances.begin() + fruitIndex);
@@ -381,7 +377,7 @@ void Renderer::trySlice(glm::vec3 rayDir1, glm::vec3 rayDir2) {
     }
     if (hitIndex != -1) {
         sliceFruit(cutPlane, hitIndex);
-        sliceCooldown = 0.05f;
+        sliceCooldown = SLICE_COOLDOWN;
     }
 }
 
@@ -407,10 +403,7 @@ void Renderer::render() {
 
     GLuint program = raycastCompute.getProgram();
 
-    // Connect the UBO binding point 1 to the shader's PaletteBlock
-    GLuint blockIndex = glGetUniformBlockIndex(program, "PaletteBlock");
-    if (blockIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(program, blockIndex, 1);
+
 
     glUniform3fv(glGetUniformLocation(program, "cameraPos"), 1, &camera.position[0]);
     glUniform3fv(glGetUniformLocation(program, "cameraForward"), 1, &camera.forward[0]);
@@ -453,7 +446,7 @@ void Renderer::render() {
     }
 
     // Tell the shader which texture unit each fruit type lives on
-    glBindBuffer(GL_UNIFORM_BUFFER, paletteUBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, paletteUBO);
     for (int t = 0; t < (int)fruitModels.size(); t++) {
         glActiveTexture(GL_TEXTURE3 + t);   // slot 3+t for type t
         glBindTexture(GL_TEXTURE_3D, fruitModels[t].voxelTexture);
@@ -461,12 +454,12 @@ void Renderer::render() {
         std::string name = "fruitTextures[" + std::to_string(t) + "]";
         glUniform1i(glGetUniformLocation(program, name.c_str()), 3 + t);
 
-        glBufferSubData(GL_UNIFORM_BUFFER,
+        glBufferSubData(GL_SHADER_STORAGE_BUFFER,
         t * 256 * sizeof(glm::vec4),
         256 * sizeof(glm::vec4),
         fruitModels[t].paletteData.data());
     }
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     //This is the texture htat is outputted from the compute shader
     glBindImageTexture(
@@ -510,6 +503,7 @@ void Renderer::update(float deltatime) {
 
     if (sliceCooldown > 0.0f)
         sliceCooldown -= deltatime;
+
     if (spawnTimer >= spawnInterval) {
         spawnTimer = 0.0f;
         spawnFruit();
@@ -530,15 +524,14 @@ void Renderer::update(float deltatime) {
             return f.position.y < -15.0f; // below screen
         }),
     fruitInstances.end()
-);
+    );
 
-    // After the remove_if despawn, clean up unused fruit types
-    // Keep only the first 4 base types, free any slice types no longer in use
+    // clean up the cut fruit
     std::set<int> usedTypes;
     for (auto& inst : fruitInstances)
         usedTypes.insert(inst.fruitType);
 
-    // Delete GPU textures for unused slice types (keep base types 0-3)
+    // Deletes GPU textures
     for (int t = 4; t < (int)fruitModels.size(); t++) {
         if (usedTypes.find(t) == usedTypes.end()) {
             glDeleteTextures(1, &fruitModels[t].voxelTexture);

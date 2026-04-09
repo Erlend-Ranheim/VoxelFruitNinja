@@ -58,6 +58,7 @@ class Renderer {
 private:
         static int const FRUIT_MODELS_AMOUNT = 4;
         static const int MAX_FRUIT_TYPES = 30;
+        static constexpr float SLICE_COOLDOWN = 0.08;
         int width, height;
 
         Camera camera;
@@ -88,9 +89,9 @@ private:
     bool cpuIntersectAABB(glm::vec3 rayOrigin, glm::vec3 rayDir,
                              glm::vec3 boxMin, glm::vec3 boxMax,
                              float& tEnter, float& tExit);
+
         float spawnTimer = 0.0f;
         float spawnInterval = 1.5f;
-
         float sliceCooldown = 0.0f;
 
         int maxFruits = 12;

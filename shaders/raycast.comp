@@ -30,7 +30,7 @@ struct FruitData {
 uniform int fruitCount;
 uniform FruitData fruits[MAX_FRUITS];
 uniform usampler3D fruitTextures[MAX_FRUIT_TYPES];
-layout(std140, binding = 1) uniform PaletteBlock {
+layout(std430, binding = 1) buffer PaletteBlock {
     vec4 palettes[MAX_FRUIT_TYPES][256];
 };
 
@@ -88,6 +88,10 @@ uint sampleVoxel(ivec3 voxel, int fruitType) {
         case 27: return texelFetch(fruitTextures[27], voxel, 0).r;
         case 28: return texelFetch(fruitTextures[28], voxel, 0).r;
         case 29: return texelFetch(fruitTextures[29], voxel, 0).r;
+
+
+
+
 
 
         default: return 0u;
