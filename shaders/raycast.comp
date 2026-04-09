@@ -14,8 +14,8 @@ uniform vec3 lightPosition;
 
 uniform sampler2D backgroundTexture;
 
-#define MAX_FRUITS 10
-#define MAX_FRUIT_TYPES 4
+#define MAX_FRUITS 12
+#define MAX_FRUIT_TYPES 30
 
 struct FruitData {
     ivec3 gridSize;
@@ -30,7 +30,9 @@ struct FruitData {
 uniform int fruitCount;
 uniform FruitData fruits[MAX_FRUITS];
 uniform usampler3D fruitTextures[MAX_FRUIT_TYPES];
-uniform vec4 palettes[MAX_FRUIT_TYPES][256];
+layout(std140, binding = 1) uniform PaletteBlock {
+    vec4 palettes[MAX_FRUIT_TYPES][256];
+};
 
 
 //method for the Ray–AABB intersection algorithm
@@ -60,6 +62,34 @@ uint sampleVoxel(ivec3 voxel, int fruitType) {
         case 1: return texelFetch(fruitTextures[1], voxel, 0).r;
         case 2: return texelFetch(fruitTextures[2], voxel, 0).r;
         case 3: return texelFetch(fruitTextures[3], voxel, 0).r;
+        case 4: return texelFetch(fruitTextures[4], voxel, 0).r;
+        case 5: return texelFetch(fruitTextures[5], voxel, 0).r;
+        case 6: return texelFetch(fruitTextures[6], voxel, 0).r;
+        case 7: return texelFetch(fruitTextures[7], voxel, 0).r;
+        case 8: return texelFetch(fruitTextures[8], voxel, 0).r;
+        case 9: return texelFetch(fruitTextures[9], voxel, 0).r;
+        case 10: return texelFetch(fruitTextures[10], voxel, 0).r;
+        case 11: return texelFetch(fruitTextures[11], voxel, 0).r;
+        case 12: return texelFetch(fruitTextures[12], voxel, 0).r;
+        case 13: return texelFetch(fruitTextures[13], voxel, 0).r;
+        case 14: return texelFetch(fruitTextures[14], voxel, 0).r;
+        case 15: return texelFetch(fruitTextures[15], voxel, 0).r;
+        case 16: return texelFetch(fruitTextures[16], voxel, 0).r;
+        case 17: return texelFetch(fruitTextures[17], voxel, 0).r;
+        case 18: return texelFetch(fruitTextures[18], voxel, 0).r;
+        case 19: return texelFetch(fruitTextures[19], voxel, 0).r;
+        case 20: return texelFetch(fruitTextures[20], voxel, 0).r;
+        case 21: return texelFetch(fruitTextures[21], voxel, 0).r;
+        case 22: return texelFetch(fruitTextures[22], voxel, 0).r;
+        case 23: return texelFetch(fruitTextures[23], voxel, 0).r;
+        case 24: return texelFetch(fruitTextures[24], voxel, 0).r;
+        case 25: return texelFetch(fruitTextures[25], voxel, 0).r;
+        case 26: return texelFetch(fruitTextures[26], voxel, 0).r;
+        case 27: return texelFetch(fruitTextures[27], voxel, 0).r;
+        case 28: return texelFetch(fruitTextures[28], voxel, 0).r;
+        case 29: return texelFetch(fruitTextures[29], voxel, 0).r;
+
+
         default: return 0u;
     }
 }

@@ -28,7 +28,12 @@ struct Light {
 struct VoxelModel {
     GLuint      voxelTexture;
     glm::ivec3  gridSize;
+    std::vector<uint8_t> voxels;
     std::vector<float> paletteData;
+
+    int index(int x, int y, int z) const {
+        return x + gridSize.x * (y + gridSize.y * z);
+    }
 };
 
 struct FruitInstance {
@@ -48,7 +53,11 @@ class Renderer {
         Renderer(int width, int height);
         void render();
         void update(float deltaTime);
-    private:
+        glm::vec3 screenToRay(float mouseX, float mouseY);
+        void trySlice(glm::vec3, glm::vec3);
+private:
+        static int const FRUIT_MODELS_AMOUNT = 4;
+        static const int MAX_FRUIT_TYPES = 30;
         int width, height;
 
         Camera camera;
@@ -69,13 +78,22 @@ class Renderer {
         GLuint screenVAO;
         GLuint screenVBO;
 
+        GLuint paletteUBO;
+
         int loadFruitModel(const std::string& path);
         void spawnFruit();
-
+        void sliceFruit(glm::vec3 cutPlane, int hitIndex);
+        int uploadNewFruitType(const VoxelModel&, const std::vector<uint8_t>&);
+        bool checkFruitHit(glm::vec3, const FruitInstance&, const VoxelModel&, float&);
+    bool cpuIntersectAABB(glm::vec3 rayOrigin, glm::vec3 rayDir,
+                             glm::vec3 boxMin, glm::vec3 boxMax,
+                             float& tEnter, float& tExit);
         float spawnTimer = 0.0f;
         float spawnInterval = 1.5f;
 
-        int maxFruits = 10;
+        float sliceCooldown = 0.0f;
+
+        int maxFruits = 12;
 };
 
 

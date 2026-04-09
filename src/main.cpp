@@ -36,6 +36,11 @@ int main() {
 
     Renderer renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
 
+
+    double mouseX, mouseY;
+    bool   wasSlicing  = false;
+    glm::vec3 lastRayDir(0.0f);
+
     float lastTime = 0.0f;
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT);
@@ -49,6 +54,19 @@ int main() {
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+
+        glfwGetCursorPos(window, &mouseX, &mouseY);
+        bool isSlicing = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
+        if (isSlicing) {
+            glm::vec3 currentRayDir = renderer.screenToRay((float)mouseX, (float)mouseY);
+            if (wasSlicing) {
+                renderer.trySlice(lastRayDir, currentRayDir);
+            }
+            lastRayDir = currentRayDir;
+        }
+        wasSlicing = isSlicing;
     }
 
     glfwTerminate();
