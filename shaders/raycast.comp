@@ -206,8 +206,8 @@ void main()
 
             vec3 lightDir = normalize(lightPosition - worldHitPos);
             float diffuse = max(dot(worldNormal, lightDir), 0.0);
-            float ambient = 0.2;
-            finalColor    = hitColor * (ambient + 0.8 * diffuse);
+            float ambient = 0.4;
+            finalColor    = hitColor * (ambient + 0.6 * diffuse);
         }
     }
 

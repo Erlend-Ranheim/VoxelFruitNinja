@@ -80,6 +80,9 @@ Renderer::Renderer(int width, int height)
     // Load fruit types - returns index you use in FruitInstance
     int bananaType = loadFruitModel("../models/banan.vox");
     int tomatType = loadFruitModel("../models/tomat.vox");
+    int melonType = loadFruitModel("../models/vannmelon.vox");
+    int appelsinType = loadFruitModel("../models/appelsin.vox");
+
     // int appleType = loadFruitModel("../models/apple.vox");  // add more later
 
 
@@ -145,7 +148,7 @@ void Renderer::spawnFruit() {
 
     FruitInstance fruit;
     fruit.fruitType     = rand() % fruitModels.size();
-    fruit.scale         = randFloat(0.1f, 0.3f);
+    fruit.scale         = randFloat(0.1f, 0.2f);
     fruit.position      = glm::vec3(randFloat(-8.0f, 8.0f), -12.0f, -10.0f);
     fruit.velocity      = glm::vec3(randFloat(-2.0f, 2.0f), randFloat(16.0f, 22.0f), 0.0f);
     fruit.rotationAngle = 0.0f;
