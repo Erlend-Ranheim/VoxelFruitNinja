@@ -1,6 +1,3 @@
-//
-// Created by ranhe on 05.03.2026.
-//
 
 #include "Renderer.h"
 #include "Config.h"
@@ -76,19 +73,17 @@ Renderer::Renderer(int width, int height)
     glBindVertexArray(0);
 
 
-    //UBO
+    //SSBO
     glGenBuffers(1, &paletteUBO);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, paletteUBO);
     glBufferData(GL_SHADER_STORAGE_BUFFER, MAX_FRUIT_TYPES * 256 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, paletteUBO);
 
-    // Load fruit types - returns index you use in FruitInstance
+    // Load fruit types
     int bananaType = loadFruitModel("../models/banan.vox");
     int tomatType = loadFruitModel("../models/tomat.vox");
     int melonType = loadFruitModel("../models/vannmelon.vox");
     int appelsinType = loadFruitModel("../models/appelsin.vox");
-
-    // int appleType = loadFruitModel("../models/apple.vox");  // add more later
 
 
     //Load the background image
@@ -107,7 +102,7 @@ Renderer::Renderer(int width, int height)
     }
     else
     {
-        std::cout << "Failed to load texture" << std::endl;
+        std::cout << "Failed to load background" << std::endl;
     }
 
     stbi_image_free(background);
@@ -144,19 +139,21 @@ int Renderer::loadFruitModel(const std::string& path) {
     return (int)fruitModels.size() - 1; // returns the index
 }
 
+//small function to get random numbers
 auto randFloat = [](float min, float max) {
     return min + (float)rand() / RAND_MAX * (max - min);
 };
 
+//Function to spawn fruit with random traits
 void Renderer::spawnFruit() {
     if (fruitInstances.size() >= maxFruits)
         return;
 
     FruitInstance fruit;
     fruit.fruitType     = rand() % FRUIT_MODELS_AMOUNT;
-    fruit.scale         = randFloat(0.1f, 0.2f);
-    fruit.position      = glm::vec3(randFloat(-8.0f, 8.0f), -12.0f, -10.0f);
-    fruit.velocity      = glm::vec3(randFloat(-2.0f, 2.0f), randFloat(16.0f, 22.0f), 0.0f);
+    fruit.scale         = randFloat(0.1f, 0.15f);
+    fruit.position      = glm::vec3(randFloat(-8.0f, 8.0f), -12.5f, -12.0f);
+    fruit.velocity      = glm::vec3(randFloat(-2.0f, 2.0f), randFloat(16.0f, 20.0f), 0.0f);
     fruit.rotationAngle = 0.0f;
     fruit.rotationAxis  = glm::normalize(glm::vec3(randFloat(-1,1), randFloat(-1,1), randFloat(-1,1)));
     fruit.rotationSpeed = randFloat(1.0f, 4.0f);
@@ -198,11 +195,10 @@ int Renderer::uploadNewFruitType(const VoxelModel& source, const std::vector<uin
         return slot;
     }
     if ((int)fruitModels.size() >= MAX_FRUIT_TYPES) {
-        std::cout << "Warning: MAX_FRUIT_TYPES exceeded\n";
+        std::cout << "max fruit types exceeded!\n";
         glDeleteTextures(1, &newModel.voxelTexture);
         return 0;
     }
-
 
     fruitModels.push_back(newModel);
     return (int)fruitModels.size() - 1;
@@ -210,9 +206,8 @@ int Renderer::uploadNewFruitType(const VoxelModel& source, const std::vector<uin
 
 void Renderer::sliceFruit(glm::vec3 cutPlane, int fruitIndex) {
     FruitInstance original = fruitInstances[fruitIndex];
-    int originalFruitType = original.fruitType;  // store index, not reference!
+    int originalFruitType = original.fruitType;
 
-    // Use fruitModels[originalFruitType] directly everywhere
     glm::ivec3 gridSize = fruitModels[originalFruitType].gridSize;
     glm::vec3 halfSize  = glm::vec3(gridSize) * original.scale * 0.5f;
     glm::vec3 voxelSize = (halfSize * 2.0f) / glm::vec3(gridSize);
@@ -245,7 +240,7 @@ void Renderer::sliceFruit(glm::vec3 cutPlane, int fruitIndex) {
     for (auto v : voxelsA) if (v > 0) countA++;
     for (auto v : voxelsB) if (v > 0) countB++;
 
-    // If one half is empty, the cut missed — don't slice
+    // If one half is empty, the cut missed, don't slice
     if (countA == 0 || countB == 0)
         return;
 
@@ -270,9 +265,7 @@ void Renderer::sliceFruit(glm::vec3 cutPlane, int fruitIndex) {
     fruitInstances.push_back(halfB);
 }
 
-bool Renderer::cpuIntersectAABB(glm::vec3 rayOrigin, glm::vec3 rayDir,
-                                 glm::vec3 boxMin, glm::vec3 boxMax,
-                                 float& tEnter, float& tExit) {
+bool Renderer::cpuIntersectAABB(glm::vec3 rayOrigin, glm::vec3 rayDir,glm::vec3 boxMin, glm::vec3 boxMax,float& tEnter, float& tExit) {
     glm::vec3 invDir = 1.0f / rayDir;
     glm::vec3 t0 = (boxMin - rayOrigin) * invDir;
     glm::vec3 t1 = (boxMax - rayOrigin) * invDir;
@@ -331,7 +324,9 @@ bool Renderer::checkFruitHit(glm::vec3 rayDir, const FruitInstance& inst, const 
         localDir.z != 0 ? (nextBoundary.z - startPos.z) / localDir.z : 1e30f
     );
 
-    for (int i = 0; i < 512; i++) {
+    //DDA traversal
+    //96 checks is the worst case for 32x32x32 grids since diagonal is 32+32+32 = 96
+    for (int i = 0; i < 96; i++) {
         if (glm::any(glm::lessThan(voxel, glm::ivec3(0))) ||
             glm::any(glm::greaterThanEqual(voxel, model.gridSize)))
             break;
@@ -341,6 +336,7 @@ bool Renderer::checkFruitHit(glm::vec3 rayDir, const FruitInstance& inst, const 
         if (val > 0)
             return true;
 
+        //choses next step
         if (tMaxV.x < tMaxV.y && tMaxV.x < tMaxV.z) {
             voxel.x += stepDir.x; tMaxV.x += tDelta.x;
         } else if (tMaxV.y < tMaxV.z) {
@@ -356,16 +352,18 @@ bool Renderer::checkFruitHit(glm::vec3 rayDir, const FruitInstance& inst, const 
 
 
 void Renderer::trySlice(glm::vec3 rayDir1, glm::vec3 rayDir2) {
+    //early opt out if slice has happened recently
     if (sliceCooldown > 0.0f)
         return;
     //find cut plane
     glm::vec3 cutPlane = cross(rayDir2, rayDir1);
 
-    //loop thorugh list
+
 
     int   hitIndex = -1;
     float closestDistance = 1e30f;
 
+    //loop thorugh list
     for (int i = 0; i < (int)fruitInstances.size(); i++) {
         float hitDistance;
         if (checkFruitHit(rayDir1, fruitInstances[i], fruitModels[fruitInstances[i].fruitType], hitDistance)) {
@@ -383,8 +381,7 @@ void Renderer::trySlice(glm::vec3 rayDir1, glm::vec3 rayDir2) {
 
 glm::vec3 Renderer::screenToRay(float mouseX, float mouseY) {
     float aspectRatio = (float)width / (float)height;
-    glm::vec2 uv = (glm::vec2(mouseX, height - mouseY)
-                   / glm::vec2(width, height)) * 2.0f - 1.0f;
+    glm::vec2 uv = (glm::vec2(mouseX, height - mouseY) / glm::vec2(width, height)) * 2.0f - 1.0f;
     uv.x *= aspectRatio;
     float f = glm::tan(glm::radians(camera.fov * 0.5f));
     return glm::normalize(
@@ -398,12 +395,7 @@ glm::vec3 Renderer::screenToRay(float mouseX, float mouseY) {
 void Renderer::render() {
 
     raycastCompute.use();
-
-
-
     GLuint program = raycastCompute.getProgram();
-
-
 
     glUniform3fv(glGetUniformLocation(program, "cameraPos"), 1, &camera.position[0]);
     glUniform3fv(glGetUniformLocation(program, "cameraForward"), 1, &camera.forward[0]);
@@ -435,7 +427,7 @@ void Renderer::render() {
         glUniform1f (glGetUniformLocation(program, (base+"scale").c_str()),     inst.scale);
 
 
-        // Rotation matrix — also inside the loop
+        // Rotation matrix
         glm::mat3 rot = glm::mat3(glm::rotate(
             glm::mat4(1.0f),
             inst.rotationAngle,
@@ -477,8 +469,6 @@ void Renderer::render() {
     glBindTexture(GL_TEXTURE_2D, backgroundTexture);
     glUniform1i(glGetUniformLocation(program, "backgroundTexture"), 2);
 
-
-
     raycastCompute.dispatch((width + 15) / 16, (height + 15) / 16);
     raycastCompute.wait();
 
@@ -496,7 +486,6 @@ void Renderer::render() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
-const float GRAVITY = -9.8f;
 
 void Renderer::update(float deltatime) {
     spawnTimer += deltatime;

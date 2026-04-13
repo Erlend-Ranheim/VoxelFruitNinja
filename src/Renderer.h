@@ -59,6 +59,8 @@ private:
         static int const FRUIT_MODELS_AMOUNT = 4;
         static const int MAX_FRUIT_TYPES = 30;
         static constexpr float SLICE_COOLDOWN = 0.08;
+        static constexpr float GRAVITY = -9.8f;
+
         int width, height;
 
         Camera camera;
@@ -86,9 +88,7 @@ private:
         void sliceFruit(glm::vec3 cutPlane, int hitIndex);
         int uploadNewFruitType(const VoxelModel&, const std::vector<uint8_t>&);
         bool checkFruitHit(glm::vec3, const FruitInstance&, const VoxelModel&, float&);
-    bool cpuIntersectAABB(glm::vec3 rayOrigin, glm::vec3 rayDir,
-                             glm::vec3 boxMin, glm::vec3 boxMax,
-                             float& tEnter, float& tExit);
+    bool cpuIntersectAABB(glm::vec3 rayOrigin, glm::vec3 rayDir,glm::vec3 boxMin, glm::vec3 boxMax,float& tEnter, float& tExit);
 
         float spawnTimer = 0.0f;
         float spawnInterval = 1.5f;

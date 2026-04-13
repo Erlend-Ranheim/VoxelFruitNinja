@@ -89,11 +89,6 @@ uint sampleVoxel(ivec3 voxel, int fruitType) {
         case 28: return texelFetch(fruitTextures[28], voxel, 0).r;
         case 29: return texelFetch(fruitTextures[29], voxel, 0).r;
 
-
-
-
-
-
         default: return 0u;
     }
 }
@@ -176,7 +171,7 @@ void main()
     float aspectRatio = resolution.x / resolution.y;
     ivec2 pixel = ivec2(gl_GlobalInvocationID.xy); //the relevant pixel we work with
 
-    if (pixel.x >= int(resolution.x) || pixel.y >= int(resolution.y)) //Checks if the relevant pixel is outside the reolution (shouldnt happen since we harcode dimensions to 1280x720)
+    if (pixel.x >= int(resolution.x) || pixel.y >= int(resolution.y)) //Checks if the relevant pixel is outside the reolution (shouldnt happen since we harcode dimensions)
         return;
 
     vec2 uv = ((vec2(pixel) + 0.5) / resolution) * 2.0 - 1.0; //Normalizing the screen coordinates so it goes from -1 to 1
