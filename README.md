@@ -6,11 +6,6 @@ using OpenGL 4.3 compute shaders and ray casting.
 
 Video of game running below:
 
-<p align="center" width="100%">
-<video src="https://github.com/user-attachments/assets/94062a7d-fc56-450e-a70f-853becfe148d" width="80%" controls></video>
-</p>
-
-
 https://github.com/user-attachments/assets/94062a7d-fc56-450e-a70f-853becfe148d
 
 
