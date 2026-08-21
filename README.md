@@ -4,6 +4,8 @@ TDT4230 Final Project - Erlend Ranheim
 A real-time voxel renderer implementing a Fruit Ninja-inspired game
 using OpenGL 4.3 compute shaders and ray casting.
 
+Fully implemented using C++ for logic and GLSL for shaders. 
+
 Video of game running below:
 
 https://github.com/user-attachments/assets/94062a7d-fc56-450e-a70f-853becfe148d
